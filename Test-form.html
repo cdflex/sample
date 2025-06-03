@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Food Order Test</h1>
+    <input id="query" type="text" placeholder="e.g., Order a Margherita Pizza">
+    <button onclick="sendQuery()">Submit</button>
+    <pre id="response"></pre>
+    <script>
+        async function sendQuery() {
+            const query = document.getElementById("query").value;
+            try {
+                const response = await fetch("http://192.168.1.100:8000/order", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                document.getElementById("response").innerText = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById("response").innerText = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
