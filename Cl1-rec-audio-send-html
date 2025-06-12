@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Capture</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; }
+        #status { color: red; }
+        #transcription { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Voice Capture and Transcription</h1>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <p id="status">Click "Start Recording" to begin.</p>
+    <div id="transcription"></div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+        const transcriptionDiv = document.getElementById('transcription');
+
+        // Request microphone access and start recording
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioChunks = [];
+                    await sendAudioToServer(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                status.textContent = 'Recording...';
+            } catch (err) {
+                status.textContent = 'Error accessing microphone: ' + err.message;
+            }
+        });
+
+        // Stop recording
+        stopBtn.addEventListener('click', () => {
+            mediaRecorder.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.textContent = 'Processing audio...';
+        });
+
+        // Send audio to server
+        async function sendAudioToServer(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+
+            try {
+                const response = await fetch('http://localhost:5000/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.text) {
+                    transcriptionDiv.textContent = 'Transcription: ' + result.text;
+                    status.textContent = 'Transcription complete!';
+                } else {
+                    status.textContent = 'Error: ' + result.error;
+                }
+            } catch (err) {
+                status.textContent = 'Error sending audio: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
